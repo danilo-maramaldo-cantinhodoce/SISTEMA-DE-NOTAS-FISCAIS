@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINANÇAS PRO - Gestão de Notas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+body{background:#f1f5f9}
+.tab-active{border-bottom:4px solid white;font-weight:900}
+.pago-row{background:#dcfce7!important;border-left:5px solid #16a34a}
+.modal-backdrop{background:rgba(15,23,42,.75)}
+.status-btn.active{background:#2563eb;color:white;border-color:#2563eb}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6!important}
+.table-scroll{overflow-x:auto}
+.field-label{display:block;font-size:11px;font-weight:900;color:#64748b;margin-bottom:7px;text-transform:uppercase}
+.input{width:100%;padding:12px;border:2px solid #f1f5f9;border-radius:9px;background:white}
+.filter-label{display:block;font-size:10px;font-weight:900;color:#94a3b8;margin-bottom:5px;text-transform:uppercase}
+.filter-input{width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:white}
+.import-box{border:1px dashed #94a3b8;background:#f8fafc;border-radius:12px}
+</style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+<nav class="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
+  <div class="container mx-auto px-5 py-4 flex flex-wrap justify-between items-center gap-4">
+    <h1 class="text-2xl font-black tracking-tight text-blue-400">FINANÇAS <span class="text-white">PRO</span></h1>
+    <div class="flex items-center gap-4 overflow-x-auto">
+      <button id="btn-cadastro" onclick="showTab('cadastro')" class="tab-btn hover:text-blue-300 transition">CADASTRO</button>
+      <button id="btn-lista" onclick="showTab('lista')" class="tab-btn hover:text-blue-300 transition">NOTAS</button>
+      <button id="btn-dashboard" onclick="showTab('dashboard')" class="tab-btn hover:text-blue-300 transition">DASHBOARD</button>
+      <div class="h-6 w-px bg-slate-600"></div>
+      <button onclick="exportarDadosJSON()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-full text-xs font-black">EXPORTAR DADOS</button>
+      <button onclick="document.getElementById('arquivoImportacao').click()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-full text-xs font-black">IMPORTAR DADOS</button>
+      <input id="arquivoImportacao" type="file" accept=".json,.xlsx,.xls" class="hidden" onchange="importarDados(this)">
+    </div>
+  </div>
+</nav>
+
+<div class="container mx-auto p-4 md:p-8">
+
+<section id="cadastro" class="tab-content">
+  <div class="max-w-6xl mx-auto bg-white p-7 md:p-9 rounded-2xl shadow-xl">
+    <div class="flex items-center justify-between gap-4 mb-8">
+      <div class="flex items-center gap-3">
+        <span class="w-2 h-8 bg-blue-600 rounded"></span>
+        <div>
+          <h2 class="text-2xl font-black">Lançamento de Nota</h2>
+          <p class="text-xs text-slate-400">Cadastro financeiro com classificação de Manutenção ou Expansão.</p>
+        </div>
+      </div>
+      <button type="button" onclick="novoCadastro()" class="bg-slate-200 hover:bg-slate-300 px-4 py-2 rounded-lg text-xs font-black">NOVO</button>
+    </div>
+
+    <form id="nfForm" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div><label class="field-label">Número da Nota</label><input id="numero_nota" type="text" required class="input"></div>
+      <div><label class="field-label">Tipo</label><select id="natureza" class="input"><option value="DANFE">DANFE</option><option value="NFSe">NFSe</option></select></div>
+      <div><label class="field-label">Data de Emissão</label><input id="data_emissao" type="date" required class="input"></div>
+
+      <div><label class="field-label">CNPJ Emitente</label><input id="cnpj_emitente" maxlength="18" placeholder="00.000.000/0000-00" oninput="mascaraCNPJ(this)" class="input font-mono"></div>
+      <div><label class="field-label">Razão Social do Prestador de Serviço</label><input id="razao_social_prestador" class="input" placeholder="Razão social do emitente"></div>
+      <div><label class="field-label">Nome Fantasia do Prestador</label><input id="nome_fantasia_prestador" class="input" placeholder="Nome fantasia"></div>
+
+      <div><label class="field-label">Loja Destino</label><select id="loja_select" required onchange="atualizarCnpjLoja()" class="input bg-blue-50"></select></div>
+      <div class="md:col-span-2 bg-slate-900 text-blue-300 p-4 rounded-xl flex justify-between items-center">
+        <span class="text-xs font-black uppercase tracking-widest">CNPJ Destinatário</span>
+        <strong id="cnpj_destino_display" class="font-mono text-lg">---</strong>
+      </div>
+
+      <div class="md:col-span-2"><label class="field-label">Descrição</label><textarea id="descricao" rows="3" class="input" placeholder="Descrição resumida da nota/serviço."></textarea></div>
+      <div><label class="field-label">Responsável</label><input id="responsavel" class="input" placeholder="Responsável pelo lançamento"></div>
+
+      <div>
+        <label class="field-label">Classificação</label>
+        <select id="tipo_despesa" class="input">
+          <option value="Manutenção">Manutenção</option>
+          <option value="Expansão">Expansão</option>
+        </select>
+      </div>
+      <div><label class="field-label">Valor Total (R$)</label><input id="valor_total" type="number" step="0.01" min="0" required class="input text-xl font-black text-blue-700"></div>
+      <div>
+        <label class="field-label">Forma de Pagamento</label>
+        <select id="forma_pagamento" onchange="toggleParcelas()" class="input">
+          <option value="Boleto">Boleto Bancário</option>
+          <option value="Pix">Pix / Transferência</option>
+          <option value="Cartão de Crédito Cohama">Cartão de Crédito Cohama</option>
+          <option value="Cartão de Crédito CD BR">Cartão de Crédito CD BR</option>
+        </select>
+      </div>
+
+      <div><label class="field-label">Quantidade de Parcelas</label><input id="qtd_parcelas" type="number" min="1" value="1" class="input"></div>
+      <div><label class="field-label">Data Prevista do Primeiro Pagamento</label><input id="data_pagamento" type="date" class="input"></div>
+      <div class="flex items-end"><div id="div_parcelas" class="w-full text-xs text-slate-400">As parcelas são projetadas mensalmente a partir da emissão.</div></div>
+
+      <button type="submit" class="md:col-span-3 bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-xl font-black text-lg shadow-lg">GRAVAR NOTA FISCAL</button>
+    </form>
+  </div>
+</section>
+
+<section id="lista" class="tab-content hidden">
+  <div class="bg-white p-6 rounded-2xl shadow-xl">
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-5">
+      <div><h2 class="text-2xl font-black">Notas cadastradas</h2><p class="text-xs text-slate-400">Use os filtros para localizar e editar os lançamentos.</p></div>
+      <button onclick="showTab('cadastro')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl text-xs font-black">+ NOVA NOTA</button>
+    </div>
+
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div class="md:col-span-2"><label class="filter-label">Busca</label><input id="filtro_busca" oninput="renderTable()" placeholder="Nota, descrição, fornecedor, CNPJ, responsável..." class="filter-input"></div>
+        <div><label class="filter-label">Loja</label><select id="filtro_loja" onchange="renderTable()" class="filter-input"></select></div>
+        <div><label class="filter-label">Classificação</label><select id="filtro_tipo" onchange="renderTable()" class="filter-input"><option value="">Todas</option><option>Manutenção</option><option>Expansão</option></select></div>
+        <div><label class="filter-label">Emissão Inicial</label><input id="filtro_data_ini" type="date" onchange="renderTable()" class="filter-input"></div>
+        <div><label class="filter-label">Emissão Final</label><input id="filtro_data_fim" type="date" onchange="renderTable()" class="filter-input"></div>
+      </div>
+      <div class="mt-3 flex justify-end"><button onclick="limparFiltros()" class="bg-slate-200 hover:bg-slate-300 px-5 py-2 rounded-lg text-xs font-black">LIMPAR FILTROS</button></div>
+    </div>
+
+    <div class="mb-7">
+      <div class="flex justify-between items-center mb-3"><h3 class="text-xs font-black uppercase tracking-widest text-slate-500">Filtrar por Status</h3></div>
+      <div id="statusButtons" class="flex flex-wrap gap-2"></div>
+      <input type="hidden" id="filtro_status" value="">
+    </div>
+
+    <div class="table-scroll rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-900 text-white">
+          <tr>
+            <th class="p-3 text-left whitespace-nowrap">Nº NOTA</th><th class="p-3 text-left">TIPO</th><th class="p-3 text-left">EMISSÃO</th>
+            <th class="p-3 text-left">CNPJ EMITENTE</th><th class="p-3 text-left">PRESTADOR</th><th class="p-3 text-left">LOJA</th>
+            <th class="p-3 text-left">CLASSIFICAÇÃO</th><th class="p-3 text-left">VALOR</th><th class="p-3 text-left">PAGAMENTO</th>
+            <th class="p-3 text-center">PARCELAS</th><th class="p-3 text-left">STATUS</th><th class="p-3 text-left">DATA PREVISTA</th><th class="p-3 text-center">AÇÕES</th>
+          </tr>
+        </thead>
+        <tbody id="tabela_notas" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" class="tab-content hidden space-y-8">
+  <div class="bg-white p-6 rounded-2xl shadow-xl">
+    <div class="flex flex-wrap justify-between items-center gap-4">
+      <div><h2 class="text-2xl font-black">Dashboard Financeiro</h2><p class="text-xs text-slate-400">Manutenção e Expansão aparecem separadas nos valores de competência e projetados.</p></div>
+      <select id="ano_select" onchange="renderCharts()" class="border rounded-lg p-2 font-black"></select>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <h3 class="text-center font-black uppercase text-xs text-slate-500 mb-1">Competência</h3>
+      <p class="text-center text-[10px] text-slate-400 mb-5">Valor total das notas pelo mês de emissão</p>
+      <canvas id="chartCompetencia"></canvas>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-xl">
+      <h3 class="text-center font-black uppercase text-xs text-slate-500 mb-1">Projetados nos meses subsequentes</h3>
+      <p class="text-center text-[10px] text-slate-400 mb-5">Parcelas/faturas projetadas pelo mês de vencimento</p>
+      <canvas id="chartProjetado"></canvas>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div id="modalEdicao" class="fixed inset-0 hidden items-center justify-center z-[100] modal-backdrop p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-y-auto">
+    <div class="bg-slate-900 text-white p-5 flex justify-between items-center sticky top-0 z-10">
+      <div><h2 class="font-black text-xl">Editar Nota</h2><p class="text-xs text-slate-400">Todos os campos podem ser alterados.</p></div>
+      <button onclick="fecharEdicao()" class="text-2xl hover:text-red-400">✕</button>
+    </div>
+    <form id="formEdicao" class="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
+      <input type="hidden" id="edit_id">
+      <div><label class="field-label">Nº Nota</label><input id="edit_numero" required class="input"></div>
+      <div><label class="field-label">Tipo</label><select id="edit_natureza" class="input"><option>DANFE</option><option>NFSe</option></select></div>
+      <div><label class="field-label">Emissão</label><input id="edit_data_emissao" type="date" required class="input"></div>
+      <div><label class="field-label">CNPJ Emitente</label><input id="edit_cnpj_emitente" maxlength="18" oninput="mascaraCNPJ(this)" class="input font-mono"></div>
+      <div><label class="field-label">Razão Social do Prestador de Serviço</label><input id="edit_razao_social_prestador" class="input"></div>
+      <div><label class="field-label">Nome Fantasia do Prestador</label><input id="edit_nome_fantasia_prestador" class="input"></div>
+      <div><label class="field-label">Loja</label><select id="edit_loja" onchange="atualizarCnpjEdicao()" class="input"></select></div>
+      <div><label class="field-label">CNPJ Destino</label><input id="edit_cnpj_destino" readonly class="input bg-slate-100 font-mono"></div>
+      <div><label class="field-label">Classificação</label><select id="edit_tipo_despesa" class="input"><option>Manutenção</option><option>Expansão</option></select></div>
+      <div class="md:col-span-2"><label class="field-label">Descrição</label><textarea id="edit_descricao" rows="3" class="input"></textarea></div>
+      <div><label class="field-label">Responsável</label><input id="edit_responsavel" class="input"></div>
+      <div><label class="field-label">Valor</label><input id="edit_valor" type="number" step="0.01" min="0" required class="input"></div>
+      <div><label class="field-label">Forma de Pagamento</label><select id="edit_pagamento" class="input"><option>Boleto</option><option>Pix</option><option>Cartão de Crédito Cohama</option><option>Cartão de Crédito CD BR</option></select></div>
+      <div><label class="field-label">Parcelas</label><input id="edit_parcelas" type="number" min="1" required class="input"></div>
+      <div><label class="field-label">Status</label><select id="edit_status" class="input"></select></div>
+      <div><label class="field-label">Data Prevista do Primeiro Pagamento</label><input id="edit_data_pagamento" type="date" class="input"></div>
+      <div class="md:col-span-3 border-t pt-5 flex justify-end gap-3">
+        <button type="button" onclick="fecharEdicao()" class="px-6 py-3 rounded-lg bg-slate-200 font-bold">CANCELAR</button>
+        <button type="submit" class="px-8 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black">SALVAR ALTERAÇÕES</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const lojasDB={
+"Renascença":"19.644.944/0004-72","Vila Isabel":"19.644.944/0012-82","Festi Africanos":"44.016.976/0003-90",
+"São Cristóvão":"19.644.944/0006-34","CD-BR":"44.016.976/0001-28","Maiobão":"19.644.944/0003-91",
+"Cohama":"19.644.944/0001-20","Centro":"08.505.025/0001-59","Cohab":"19.644.944/0005-53",
+"Araçagy":"19.644.944/0014-44","Cohama Adm":"44.016.976/0002-09","Santa Inês":"19.644.944/0008-04",
+"Dirceu":"19.644.944/0009-87","Homero":"19.644.944/0011-00","Caxias":"19.644.944/0013-63","Parque Piauí":"19.644.944/0015-25"
+};
+const statusList=["Gerência","Diretoria","Contabilidade","Pedido","CPD","Financeiro","Arquivamento","Concluído"];
+const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+let notas=[],chartCompetencia=null,chartProjetado=null;
+
+function escapeHTML(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
+function moeda(v){return Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function dataBR(d){if(!d)return "";const p=d.split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d}
+function mascaraCNPJ(input){let v=input.value.replace(/\D/g,"").slice(0,14);v=v.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2");input.value=v}
+
+function carregarNotas(){
+  const chaves=["notas_v4_db","notas_v5_db","notas_v3_db","notas_db","notas"];
+  for(const chave of chaves){try{const d=JSON.parse(localStorage.getItem(chave));if(Array.isArray(d)&&d.length)return d}catch(e){}}
+  return [];
+}
+function salvarNotas(){localStorage.setItem("notas_v4_db",JSON.stringify(notas))}
+function normalizarNotas(){
+  notas=notas.map((n,i)=>{
+    const valor=Number(n.valor_total)||0;
+    let faturas=Array.isArray(n.faturas)?n.faturas:[];
+    if(!faturas.length&&n.data_emissao)faturas=[{vencimento:n.data_emissao,valor:valor}];
+    return {
+      id:n.id||(Date.now()+i),numero:n.numero||n.nota||"",natureza:n.natureza||"DANFE",
+      data_emissao:n.data_emissao||n.emissao||"",cnpj_emitente:n.cnpj_emitente||"",
+      razao_social_prestador:n.razao_social_prestador||n.razao_social||"",
+      nome_fantasia_prestador:n.nome_fantasia_prestador||n.nome_fantasia||"",
+      loja:n.loja||"",cnpj_destino:n.cnpj_destino||lojasDB[n.loja]||"",descricao:n.descricao||"",
+      responsavel:n.responsavel||n.solicitante||"",tipo_despesa:n.tipo_despesa||n.tipo||"Manutenção",
+      valor_total:valor,forma_pagamento:n.forma_pagamento||n.pagamento||"Boleto",
+      status:statusList.includes(n.status)?n.status:"Gerência",data_pagamento:n.data_pagamento||"",faturas:faturas
+    };
+  });
+  salvarNotas();
+}
+
+function carregarLojas(){
+  const cadastro=document.getElementById("loja_select"),filtro=document.getElementById("filtro_loja"),edicao=document.getElementById("edit_loja");
+  cadastro.innerHTML='<option value="">Selecione...</option>';filtro.innerHTML='<option value="">Todas</option>';edicao.innerHTML="";
+  Object.keys(lojasDB).forEach(loja=>{cadastro.add(new Option(loja,loja));filtro.add(new Option(loja,loja));edicao.add(new Option(loja,loja))});
+}
+function atualizarCnpjLoja(){const loja=loja_select.value;cnpj_destino_display.innerText=lojasDB[loja]||"---"}
+function atualizarCnpjEdicao(){const loja=edit_loja.value;edit_cnpj_destino.value=lojasDB[loja]||""}
+function toggleParcelas(){document.getElementById("div_parcelas").style.opacity="1"}
+
+function showTab(tab){
+  document.querySelectorAll(".tab-content").forEach(e=>e.classList.add("hidden"));
+  document.querySelectorAll(".tab-btn").forEach(e=>e.classList.remove("tab-active"));
+  document.getElementById(tab).classList.remove("hidden");document.getElementById("btn-"+tab).classList.add("tab-active");
+  if(tab==="lista")renderTable();if(tab==="dashboard")renderCharts();
+}
+
+function criarFiltrosStatus(){
+  const c=document.getElementById("statusButtons");c.innerHTML="";
+  [["Todos",""],...statusList.map(s=>[s,s])].forEach(([texto,valor],idx)=>{
+    const b=document.createElement("button");b.type="button";b.innerText=texto;b.dataset.status=valor;
+    b.className="status-btn px-4 py-2 rounded-full border border-slate-200 bg-white text-xs font-black hover:bg-blue-50 transition";
+    if(idx===0)b.classList.add("active");
+    b.onclick=()=>{document.getElementById("filtro_status").value=valor;document.querySelectorAll(".status-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");renderTable()};
+    c.appendChild(b);
+  });
+}
+
+function criarAnos(){
+  const s=document.getElementById("ano_select"),ano=new Date().getFullYear();s.innerHTML="";
+  for(let y=ano-3;y<=ano+8;y++)s.add(new Option(y,y));s.value=ano;
+}
+
+function criarFaturas(dataEmissao,valor,parcelas,dataPrimeiro){
+  const qtd=Math.max(1,parseInt(parcelas)||1),base=Math.floor((valor/qtd)*100)/100;
+  let acumulado=0,arr=[],primeiro=dataPrimeiro||dataEmissao;
+  for(let i=0;i<qtd;i++){
+    const d=new Date(primeiro+"T00:00:00");d.setMonth(d.getMonth()+i);
+    const vp=i===qtd-1?Number((valor-acumulado).toFixed(2)):base;acumulado+=vp;
+    arr.push({vencimento:d.toISOString().split("T")[0],valor:vp});
+  }
+  return arr;
+}
+
+document.getElementById("nfForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  const numero=numero_nota.value.trim(),data=data_emissao.value,loja=loja_select.value,valor=Number(valor_total.value);
+  if(!numero||!data||!loja||valor<=0){alert("Preencha número, data, loja e um valor válido.");return}
+  const nova={
+    id:Date.now()+Math.floor(Math.random()*10000),numero,natureza:natureza.value,data_emissao:data,
+    cnpj_emitente:cnpj_emitente.value,razao_social_prestador:razao_social_prestador.value,
+    nome_fantasia_prestador:nome_fantasia_prestador.value,loja,cnpj_destino:lojasDB[loja],
+    descricao:descricao.value,responsavel:responsavel.value,tipo_despesa:tipo_despesa.value,
+    valor_total:valor,forma_pagamento:forma_pagamento.value,status:"Gerência",data_pagamento:data_pagamento.value||"",
+    faturas:criarFaturas(data,valor,qtd_parcelas.value,data_pagamento.value||data)
+  };
+  notas.push(nova);salvarNotas();alert("✅ Nota cadastrada com sucesso!");novoCadastro();renderTable();renderCharts();
+});
+
+function novoCadastro(){
+  document.getElementById("nfForm").reset();data_emissao.value=new Date().toISOString().slice(0,10);
+  qtd_parcelas.value=1;tipo_despesa.value="Manutenção";atualizarCnpjLoja();toggleParcelas();
+}
+
+function renderTable(){
+  const tbody=document.getElementById("tabela_notas");if(!tbody)return;
+  const busca=(filtro_busca.value||"").toLowerCase().trim(),loja=filtro_loja.value,tipo=filtro_tipo.value,status=filtro_status.value,ini=filtro_data_ini.value,fim=filtro_data_fim.value;
+  let arr=notas.filter(n=>{
+    if(!status&&n.status==="Concluído")return false;if(status&&n.status!==status)return false;
+    const texto=[n.numero,n.natureza,n.data_emissao,n.cnpj_emitente,n.razao_social_prestador,n.nome_fantasia_prestador,n.loja,n.descricao,n.responsavel,n.tipo_despesa,n.valor_total,n.forma_pagamento,n.status].join(" ").toLowerCase();
+    if(busca&&!texto.includes(busca))return false;if(loja&&n.loja!==loja)return false;if(tipo&&n.tipo_despesa!==tipo)return false;
+    if(ini&&n.data_emissao<ini)return false;if(fim&&n.data_emissao>fim)return false;return true;
+  }).sort((a,b)=>String(b.data_emissao).localeCompare(String(a.data_emissao)));
+  if(!arr.length){tbody.innerHTML='<tr><td colspan="13" class="p-12 text-center text-slate-400 font-bold">Nenhuma nota encontrada.</td></tr>';return}
+  tbody.innerHTML=arr.map(n=>{
+    const qtd=n.faturas?.length||1;
+    return `<tr class="${n.data_pagamento?"pago-row":""} hover:bg-slate-50">
+      <td class="p-3 font-black whitespace-nowrap">${escapeHTML(n.numero)}</td>
+      <td class="p-3 text-xs">${escapeHTML(n.natureza)}</td><td class="p-3 text-xs">${dataBR(n.data_emissao)}</td>
+      <td class="p-3 font-mono text-xs whitespace-nowrap">${escapeHTML(n.cnpj_emitente)}</td>
+      <td class="p-3 text-xs min-w-[190px]"><b>${escapeHTML(n.nome_fantasia_prestador||"")}</b><br><span class="text-slate-400">${escapeHTML(n.razao_social_prestador||"")}</span></td>
+      <td class="p-3 font-bold text-xs">${escapeHTML(n.loja)}</td>
+      <td class="p-3 text-xs font-black ${n.tipo_despesa==="Expansão"?"text-orange-600":"text-blue-600"}">${escapeHTML(n.tipo_despesa)}</td>
+      <td class="p-3 font-black text-blue-700 whitespace-nowrap">R$ ${moeda(n.valor_total)}</td>
+      <td class="p-3 text-xs whitespace-nowrap">${escapeHTML(n.forma_pagamento)}</td><td class="p-3 text-center font-bold">${qtd}</td>
+      <td class="p-3 min-w-[150px]"><select class="w-full p-2 border rounded-lg text-xs font-bold" onchange="alterarStatus('${n.id}',this.value)">${statusList.map(s=>`<option ${n.status===s?"selected":""}>${escapeHTML(s)}</option>`).join("")}</select></td>
+      <td class="p-3 min-w-[150px]"><input type="date" value="${n.data_pagamento||""}" onchange="alterarDataPagamento('${n.id}',this.value)" class="w-full p-2 border rounded-lg text-xs"></td>
+      <td class="p-3 text-center whitespace-nowrap"><button onclick="abrirEdicao('${n.id}')" class="w-9 h-9 rounded-lg bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-700">✏️</button>
+      <button onclick="deleteNota('${n.id}')" class="w-9 h-9 rounded-lg bg-red-100 hover:bg-red-600 hover:text-white text-red-600 ml-1">🗑️</button></td>
+    </tr>`;
+  }).join("");
+}
+function alterarStatus(id,v){const n=notas.find(x=>String(x.id)===String(id));if(n){n.status=v;salvarNotas();renderTable();renderCharts()}}
+function alterarDataPagamento(id,v){const n=notas.find(x=>String(x.id)===String(id));if(n){n.data_pagamento=v||"";salvarNotas();renderTable()}}
+function deleteNota(id){const n=notas.find(x=>String(x.id)===String(id));if(!n)return;if(confirm("Tem certeza que deseja excluir a NF "+n.numero+"?")){notas=notas.filter(x=>String(x.id)!==String(id));salvarNotas();renderTable();renderCharts()}}
+function limparFiltros(){filtro_busca.value="";filtro_loja.value="";filtro_tipo.value="";filtro_data_ini.value="";filtro_data_fim.value="";filtro_status.value="";document.querySelectorAll(".status-btn").forEach(b=>b.classList.toggle("active",b.dataset.status===""));renderTable()}
+
+function abrirEdicao(id){
+  const n=notas.find(x=>String(x.id)===String(id));if(!n)return;
+  edit_id.value=n.id;edit_numero.value=n.numero;edit_natureza.value=n.natureza;edit_data_emissao.value=n.data_emissao;
+  edit_cnpj_emitente.value=n.cnpj_emitente;edit_razao_social_prestador.value=n.razao_social_prestador||"";
+  edit_nome_fantasia_prestador.value=n.nome_fantasia_prestador||"";edit_loja.value=n.loja;atualizarCnpjEdicao();
+  edit_tipo_despesa.value=n.tipo_despesa||"Manutenção";edit_descricao.value=n.descricao||"";edit_responsavel.value=n.responsavel||"";
+  edit_valor.value=n.valor_total;edit_pagamento.value=n.forma_pagamento;edit_parcelas.value=n.qtd_parcelas||n.faturas?.length||1;edit_data_pagamento.value=n.data_pagamento||"";
+  edit_status.innerHTML=statusList.map(s=>`<option ${n.status===s?"selected":""}>${escapeHTML(s)}</option>`).join("");
+  modalEdicao.classList.remove("hidden");modalEdicao.classList.add("flex");
+}
+function fecharEdicao(){modalEdicao.classList.add("hidden");modalEdicao.classList.remove("flex")}
+document.getElementById("formEdicao").addEventListener("submit",function(e){
+  e.preventDefault();const n=notas.find(x=>String(x.id)===String(edit_id.value));if(!n)return;
+  const valor=Number(edit_valor.value),data=edit_data_emissao.value,qtd=Math.max(1,parseInt(edit_parcelas.value)||1);if(valor<=0||!data){alert("Informe valor e data válidos.");return}
+  n.numero=edit_numero.value.trim();n.natureza=edit_natureza.value;n.data_emissao=data;n.cnpj_emitente=edit_cnpj_emitente.value;
+  n.razao_social_prestador=edit_razao_social_prestador.value;n.nome_fantasia_prestador=edit_nome_fantasia_prestador.value;
+  n.loja=edit_loja.value;n.cnpj_destino=lojasDB[n.loja]||"";n.tipo_despesa=edit_tipo_despesa.value;n.descricao=edit_descricao.value;
+  n.responsavel=edit_responsavel.value;n.valor_total=valor;n.forma_pagamento=edit_pagamento.value;n.status=edit_status.value;n.data_pagamento=edit_data_pagamento.value||"";
+  n.faturas=criarFaturas(data,valor,qtd,n.data_pagamento||data);salvarNotas();fecharEdicao();renderTable();renderCharts();alert("✅ Nota atualizada com sucesso!");
+});
+
+function exportarDadosJSON(){
+  const pacote={versao:3,exportado_em:new Date().toISOString(),notas:notas};
+  const blob=new Blob([JSON.stringify(pacote,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup_financas_pro.json";a.click();URL.revokeObjectURL(a.href);
+}
+
+function exportarExcel(){
+  if(typeof XLSX==="undefined"){alert("A biblioteca Excel não foi carregada.");return}
+  const dados=notas.map(n=>({
+    "ID":n.id||"", "Nº Nota":n.numero||"", "Tipo":n.natureza||"", "Data Emissão":n.data_emissao||"",
+    "CNPJ Emitente":n.cnpj_emitente||"", "Razão Social Prestador":n.razao_social_prestador||"",
+    "Nome Fantasia Prestador":n.nome_fantasia_prestador||"", "Loja":n.loja||"", "CNPJ Destino":n.cnpj_destino||lojasDB[n.loja]||"",
+    "Descrição":n.descricao||"", "Responsável":n.responsavel||"", "Classificação":n.tipo_despesa||"Manutenção",
+    "Valor":Number(n.valor_total)||0, "Forma Pagamento":n.forma_pagamento||"Boleto",
+    "Parcelas":n.qtd_parcelas||n.faturas?.length||1, "Status":n.status||"Gerência",
+    "Data Prevista Pagamento":n.data_pagamento||"", "Faturas JSON":JSON.stringify(n.faturas||[])
+  }));
+  const ws=XLSX.utils.json_to_sheet(dados);
+  ws['!cols']=[{wch:16},{wch:14},{wch:10},{wch:14},{wch:20},{wch:32},{wch:28},{wch:18},{wch:20},{wch:45},{wch:22},{wch:18},{wch:14},{wch:28},{wch:10},{wch:18},{wch:24},{wch:55}];
+  const instrucoes=[
+    ["INSTRUÇÕES - IMPORTAÇÃO DE EXCEL"],
+    ["O Excel é de ida e volta: você pode exportar, editar/adicionar notas e importar novamente no sistema."],
+    ["Identificação para atualização","O sistema tenta primeiro pelo ID. Se não houver ID correspondente, usa Nº Nota + CNPJ Emitente + Loja."],
+    ["Regra de atualização","Se a chave já existir, a linha do Excel atualiza a nota existente; se não existir, uma nova nota é criada."],
+    ["Datas","Aceita AAAA-MM-DD, DD/MM/AAAA e datas do Excel."],
+    ["Valor","Pode usar número ou formato como R$ 1.234,56."],
+    ["Classificação","Manutenção ou Expansão."],
+    ["Status","Gerência, Diretoria, Contabilidade, Pedido, CPD, Financeiro, Arquivamento ou Concluído."],
+    ["Loja","Use exatamente um dos nomes cadastrados no sistema para preencher automaticamente o CNPJ Destino."],
+    ["Faturas JSON","Opcional. Se preenchido, preserva as parcelas; se vazio, o sistema recria as parcelas usando Valor, Parcelas e Data Prevista Pagamento."]
+  ];
+  const wi=XLSX.utils.aoa_to_sheet(instrucoes);wi['!cols']=[{wch:30},{wch:100}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Notas");XLSX.utils.book_append_sheet(wb,wi,"Instruções");
+  XLSX.writeFile(wb,"financas_pro_notas.xlsx");
+}
+
+function normalizarCabecalho(v){return String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
+function valorColuna(row,nomes){
+  const mapa={};Object.keys(row).forEach(k=>mapa[normalizarCabecalho(k)]=row[k]);
+  for(const nome of nomes){const v=mapa[normalizarCabecalho(nome)];if(v!==undefined&&v!==null&&String(v).trim()!=="")return v}
+  return "";
+}
+function normalizarNumero(v){
+  if(typeof v==="number")return v;
+  let s=String(v??"").trim().replace(/R\$/gi,"").replace(/\s/g,"");
+  if(!s)return 0;
+  if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",",".");else if(s.includes(","))s=s.replace(",",".");
+  return Number(s)||0;
+}
+function chaveNegocio(n){return [String(n.numero||"").trim().toLowerCase(),String(n.cnpj_emitente||"").replace(/\D/g,""),String(n.loja||"").trim().toLowerCase()].join("|")}
+
+function importarDados(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      let importadas=[];const isJSON=file.name.toLowerCase().endsWith(".json");
+      if(isJSON){
+        const obj=JSON.parse(e.target.result);importadas=Array.isArray(obj)?obj:(Array.isArray(obj.notas)?obj.notas:[]);
+      }else{
+        if(typeof XLSX==="undefined"){alert("A biblioteca Excel não foi carregada.");return}
+        const wb=XLSX.read(e.target.result,{type:"array",cellDates:false}),ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+        importadas=rows.map((r,i)=>{
+          const loja=String(valorColuna(r,["Loja","Unidade","Filial"])).trim();
+          const fjson=valorColuna(r,["Faturas JSON","Faturas"]);let faturas=[];
+          if(fjson){try{faturas=typeof fjson==="string"?JSON.parse(fjson):fjson}catch(e){faturas=[]}}
+          const parcelas=Math.max(1,parseInt(normalizarNumero(valorColuna(r,["Parcelas","Qtd Parcelas","Quantidade de Parcelas"])))||1);
+          const valor=normalizarNumero(valorColuna(r,["Valor","Valor Total","Total"]));
+          const dataEmissao=normalizarDataImport(valorColuna(r,["Data Emissão","Emissão","Data"]));
+          const dataPagamento=normalizarDataImport(valorColuna(r,["Data Prevista Pagamento","Data Pagamento","Vencimento"]));
+          return {
+            id:valorColuna(r,["ID"]),numero:String(valorColuna(r,["Nº Nota","Número da Nota","Numero da Nota","Nota"])).trim(),
+            natureza:String(valorColuna(r,["Tipo","Natureza"])).trim()||"DANFE",data_emissao:dataEmissao,
+            cnpj_emitente:String(valorColuna(r,["CNPJ Emitente","CNPJ do Emitente"])).trim(),
+            razao_social_prestador:String(valorColuna(r,["Razão Social Prestador","Razão Social do Prestador de Serviço","Razão Social"])).trim(),
+            nome_fantasia_prestador:String(valorColuna(r,["Nome Fantasia Prestador","Nome Fantasia do Prestador","Nome Fantasia"])).trim(),
+            loja,cnpj_destino:String(valorColuna(r,["CNPJ Destino","CNPJ Destinatário"])).trim()||lojasDB[loja]||"",
+            descricao:String(valorColuna(r,["Descrição","Descricao"])).trim(),responsavel:String(valorColuna(r,["Responsável","Responsavel"])).trim(),
+            tipo_despesa:String(valorColuna(r,["Classificação","Classificacao","Tipo Despesa","Manutenção ou Expansão"])).trim()||"Manutenção",
+            valor_total:valor,forma_pagamento:String(valorColuna(r,["Forma Pagamento","Forma de Pagamento","Pagamento"])).trim()||"Boleto",
+            status:String(valorColuna(r,["Status"])).trim()||"Gerência",data_pagamento:dataPagamento,qtd_parcelas:parcelas,faturas
+          };
+        }).filter(x=>x.numero||x.valor_total);
+      }
+      if(!importadas.length){alert("Nenhum lançamento reconhecido no arquivo.");return}
+      const porId=new Map(notas.map(n=>[String(n.id),n]));const porChave=new Map(notas.map(n=>[chaveNegocio(n),n]));
+      let novos=0,atualizados=0,ignorados=0;
+      importadas.forEach((raw,i)=>{
+        const n=normalizarImportado(raw,i);
+        if(!n.numero){ignorados++;return}
+        const existente=(n.id&&porId.get(String(n.id)))||porChave.get(chaveNegocio(n));
+        if(existente){
+          const id=existente.id;Object.assign(existente,n,{id});atualizados++;
+          porId.set(String(id),existente);porChave.set(chaveNegocio(existente),existente);
+        }else{
+          notas.push(n);porId.set(String(n.id),n);porChave.set(chaveNegocio(n),n);novos++;
+        }
+      });
+      normalizarNotas();salvarNotas();renderTable();renderCharts();
+      alert(`✅ Importação concluída.\n\nNovas notas: ${novos}\nNotas atualizadas: ${atualizados}\nLinhas ignoradas: ${ignorados}`);
+    }catch(err){console.error(err);alert("Não foi possível importar o arquivo. Verifique as colunas da planilha ou use um arquivo exportado pelo sistema.")}
+    input.value="";
+  };
+  if(file.name.toLowerCase().endsWith(".json"))reader.readAsText(file);else reader.readAsArrayBuffer(file);
+}
+function normalizarDataImport(v){
+  if(!v)return "";
+  if(v instanceof Date&&!isNaN(v))return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,"0")}-${String(v.getDate()).padStart(2,"0")}`;
+  if(typeof v==="number"&&typeof XLSX!=="undefined"){const d=XLSX.SSF.parse_date_code(v);if(d)return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`}
+  const s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  let m=s.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{4})$/);if(m)return `${m[3]}-${m[2]}-${m[1]}`;
+  m=s.match(/^(\d{4})[\/.-](\d{2})[\/.-](\d{2})$/);return m?`${m[1]}-${m[2]}-${m[3]}`:s;
+}
+function normalizarImportado(n,i){
+  const id=n.id||(Date.now()+i+Math.floor(Math.random()*100000));
+  const valor=normalizarNumero(n.valor_total),qtd=Math.max(1,parseInt(n.qtd_parcelas)||n.faturas?.length||1);
+  let faturas=Array.isArray(n.faturas)?n.faturas.filter(f=>f&&f.vencimento):[];
+  if(!faturas.length&&n.data_emissao)faturas=criarFaturas(n.data_emissao,valor,qtd,n.data_pagamento||n.data_emissao);
+  return {...n,id,numero:String(n.numero||"").trim(),natureza:n.natureza||"DANFE",data_emissao:n.data_emissao||"",
+    cnpj_emitente:String(n.cnpj_emitente||"").trim(),razao_social_prestador:n.razao_social_prestador||"",
+    nome_fantasia_prestador:n.nome_fantasia_prestador||"",loja:n.loja||"",cnpj_destino:n.cnpj_destino||lojasDB[n.loja]||"",
+    descricao:n.descricao||"",responsavel:n.responsavel||"",tipo_despesa:["Manutenção","Expansão"].includes(n.tipo_despesa)?n.tipo_despesa:"Manutenção",valor_total:valor,
+    forma_pagamento:n.forma_pagamento||"Boleto",status:statusList.includes(n.status)?n.status:"Gerência",data_pagamento:n.data_pagamento||"",qtd_parcelas:qtd,faturas};
+}
+
+function renderCharts(){
+  const ano=Number(document.getElementById("ano_select").value);if(!ano||typeof Chart==="undefined")return;
+  if(chartCompetencia)chartCompetencia.destroy();if(chartProjetado)chartProjetado.destroy();
+  const compMan=new Array(12).fill(0),compExp=new Array(12).fill(0),projMan=new Array(12).fill(0),projExp=new Array(12).fill(0);
+  notas.forEach(n=>{
+    if(n.status==="Concluído")return;
+    const tipo=n.tipo_despesa==="Expansão"?"Expansão":"Manutenção";
+    if(n.data_emissao){
+      const d=new Date(n.data_emissao+"T00:00:00");if(d.getFullYear()===ano)(tipo==="Expansão"?compExp:compMan)[d.getMonth()]+=Number(n.valor_total)||0;
+    }
+    (n.faturas||[]).forEach(f=>{
+      if(!f.vencimento)return;const d=new Date(f.vencimento+"T00:00:00");if(d.getFullYear()===ano)(tipo==="Expansão"?projExp:projMan)[d.getMonth()]+=Number(f.valor)||0;
+    });
+  });
+  const opts={responsive:true,plugins:{legend:{display:true},tooltip:{callbacks:{label:c=>c.dataset.label+": R$ "+moeda(c.raw)}},datalabels:{anchor:"end",align:"top",font:{size:9,weight:"bold"},formatter:v=>v?"R$ "+moeda(v):""}},scales:{y:{beginAtZero:true,ticks:{callback:v=>"R$ "+Number(v).toLocaleString("pt-BR")}}}};
+  chartCompetencia=new Chart(document.getElementById("chartCompetencia"),{type:"bar",data:{labels:meses,datasets:[
+    {label:"Manutenção",data:compMan,backgroundColor:"#3b82f6",borderRadius:6},
+    {label:"Expansão",data:compExp,backgroundColor:"#f97316",borderRadius:6}
+  ]},options:opts,plugins:[ChartDataLabels]});
+  chartProjetado=new Chart(document.getElementById("chartProjetado"),{type:"bar",data:{labels:meses,datasets:[
+    {label:"Manutenção",data:projMan,backgroundColor:"#3b82f6",borderRadius:6},
+    {label:"Expansão",data:projExp,backgroundColor:"#f97316",borderRadius:6}
+  ]},options:opts,plugins:[ChartDataLabels]});
+}
+
+window.addEventListener("DOMContentLoaded",()=>{
+  notas=carregarNotas();normalizarNotas();carregarLojas();criarFiltrosStatus();criarAnos();novoCadastro();renderTable();renderCharts();showTab("cadastro");
+});
+document.getElementById("modalEdicao").addEventListener("click",e=>{if(e.target===e.currentTarget)fecharEdicao()});
+</script>
+</body>
+</html>

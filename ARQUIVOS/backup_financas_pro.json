@@ -1,0 +1,102 @@
+{
+  "versao": 2,
+  "exportado_em": "2026-09-01T19:48:46.992Z",
+  "notas": [
+    {
+      "id": 1787575594917,
+      "numero": "150",
+      "natureza": "DANFE",
+      "data_emissao": "2026-08-24",
+      "cnpj_emitente": "19.640.211/0001-20",
+      "razao_social_prestador": "",
+      "nome_fantasia_prestador": "",
+      "loja": "Centro",
+      "cnpj_destino": "08.505.025/0001-59",
+      "descricao": "",
+      "responsavel": "",
+      "tipo_despesa": "Manutenção",
+      "valor_total": 1800,
+      "forma_pagamento": "Boleto",
+      "status": "Contabilidade",
+      "data_pagamento": "",
+      "faturas": [
+        {
+          "vencimento": "2026-08-24",
+          "valor": 450
+        },
+        {
+          "vencimento": "2026-09-24",
+          "valor": 450
+        },
+        {
+          "vencimento": "2026-10-24",
+          "valor": 450
+        },
+        {
+          "vencimento": "2026-11-24",
+          "valor": 450
+        }
+      ]
+    },
+    {
+      "id": 1787575642875,
+      "numero": "54",
+      "natureza": "DANFE",
+      "data_emissao": "2026-08-10",
+      "cnpj_emitente": "54.654.649/8484-05",
+      "razao_social_prestador": "",
+      "nome_fantasia_prestador": "",
+      "loja": "Renascença",
+      "cnpj_destino": "19.644.944/0004-72",
+      "descricao": "",
+      "responsavel": "",
+      "tipo_despesa": "Manutenção",
+      "valor_total": 2000,
+      "forma_pagamento": "Boleto",
+      "status": "Gerência",
+      "data_pagamento": "",
+      "faturas": [
+        {
+          "vencimento": "2026-08-10",
+          "valor": 500
+        },
+        {
+          "vencimento": "2026-09-10",
+          "valor": 500
+        },
+        {
+          "vencimento": "2026-10-10",
+          "valor": 500
+        },
+        {
+          "vencimento": "2026-11-10",
+          "valor": 500
+        }
+      ]
+    },
+    {
+      "id": 1788292131168,
+      "numero": "150",
+      "natureza": "DANFE",
+      "data_emissao": "2026-09-01",
+      "cnpj_emitente": "20.150.265/0001-20",
+      "razao_social_prestador": "L G E SERVIÇO",
+      "nome_fantasia_prestador": "LG REFRIGERAÇÃO",
+      "loja": "São Cristóvão",
+      "cnpj_destino": "19.644.944/0006-34",
+      "descricao": "MANUTENÇÃO PREVENTIVA SEMESTRAL",
+      "responsavel": "DANILO",
+      "tipo_despesa": "Manutenção",
+      "valor_total": 4500,
+      "forma_pagamento": "Pix",
+      "status": "Gerência",
+      "data_pagamento": "",
+      "faturas": [
+        {
+          "vencimento": "2026-09-01",
+          "valor": 4500
+        }
+      ]
+    }
+  ]
+}
